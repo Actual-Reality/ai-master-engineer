@@ -15,8 +15,8 @@ SETTINGS = BotFrameworkAdapterSettings(
 
 # Create adapter and bot
 ADAPTER = BotFrameworkHttpAdapter(SETTINGS)
-RAG_BRIDGE = RAGBridge(backend_url=os.environ.get("RAG_BACKEND_URL", "http://localhost:50505"))
-BOT = TeamsRAGBot(RAG_BRIDGE)
+RAG_BRIDGE = RAGBridge(backend_url=os.environ.get("RAG_BACKEND_URL", "https://capps-backend-nnsnw2zar7dok.salmoncliff-681251ec.eastus.azurecontainerapps.io"))
+BOT = TeamsRAGBot(RAG_BRIDGE, storage_account_name=os.environ.get("AZURE_STORAGE_ACCOUNT_NAME", "stnnsnw2zar7dok"))
 
 async def messages(req: web.Request) -> web.Response:
     """Handle bot messages"""

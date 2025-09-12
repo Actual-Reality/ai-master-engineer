@@ -3,11 +3,18 @@ from botbuilder.core.teams import TeamsActivityHandler
 from botbuilder.schema import Attachment
 import re
 import json
+import logging
+from conversation_storage import ConversationStorage
+
+logger = logging.getLogger(__name__)
 
 class TeamsRAGBot(TeamsActivityHandler):
-    def __init__(self, rag_bridge):
+    def __init__(self, rag_bridge, storage_connection_string=None, storage_account_name=None):
         self.rag_bridge = rag_bridge
-        self.conversation_state = {}
+        self.conversation_storage = ConversationStorage(
+            connection_string=storage_connection_string,
+            storage_account_name=storage_account_name
+        )
 
     async def on_message_activity(self, turn_context: TurnContext):
         # Handle special commands first
@@ -39,8 +46,8 @@ class TeamsRAGBot(TeamsActivityHandler):
                 user_context=await self.get_user_context(turn_context)
             )
 
-            # Update conversation history
-            self.update_conversation_history(conversation_id, user_query, response)
+            # Update conversation history with persistent storage
+            await self.update_conversation_history(conversation_id, user_query, response)
 
             # Format and send response
             response_card = self.format_response_card(response)
@@ -77,10 +84,15 @@ class TeamsRAGBot(TeamsActivityHandler):
         
         elif message.startswith('/clear') or message == 'clear':
             conversation_id = turn_context.activity.conversation.id
-            self.conversation_state[conversation_id] = []
-            await turn_context.send_activity(
-                MessageFactory.text("✅ Conversation history cleared!")
-            )
+            success = self.conversation_storage.clear_conversation(conversation_id)
+            if success:
+                await turn_context.send_activity(
+                    MessageFactory.text("✅ Conversation history cleared!")
+                )
+            else:
+                await turn_context.send_activity(
+                    MessageFactory.text("⚠️ Failed to clear conversation history. Please try again.")
+                )
             return True
         
         return False
@@ -211,22 +223,42 @@ class TeamsRAGBot(TeamsActivityHandler):
 
     def get_conversation_history(self, conversation_id: str) -> list:
         """Get conversation history for context"""
-        return self.conversation_state.get(conversation_id, [])
+        try:
+            history = self.conversation_storage.get_conversation_history(conversation_id, max_messages=20)
+            # Convert to the format expected by RAG bridge
+            formatted_history = []
+            for message in history:
+                formatted_history.append({
+                    "role": message.get("role"),
+                    "content": message.get("content")
+                })
+            return formatted_history
+        except Exception as e:
+            logger.error(f"Failed to get conversation history: {str(e)}")
+            return []
 
-    def update_conversation_history(self, conversation_id: str, query: str, response: dict):
-        """Update conversation history"""
-        if conversation_id not in self.conversation_state:
-            self.conversation_state[conversation_id] = []
-        
-        # Add user message and assistant response
-        self.conversation_state[conversation_id].extend([
-            {"role": "user", "content": query},
-            {"role": "assistant", "content": response.get("answer", "")}
-        ])
-        
-        # Keep only last 10 exchanges (20 messages)
-        if len(self.conversation_state[conversation_id]) > 20:
-            self.conversation_state[conversation_id] = self.conversation_state[conversation_id][-20:]
+    async def update_conversation_history(self, conversation_id: str, query: str, response: dict):
+        """Update conversation history with persistent storage"""
+        try:
+            # Add user message
+            user_success = self.conversation_storage.add_message(
+                conversation_id=conversation_id,
+                role="user",
+                content=query
+            )
+            
+            # Add assistant response
+            assistant_success = self.conversation_storage.add_message(
+                conversation_id=conversation_id,
+                role="assistant",
+                content=response.get("answer", "")
+            )
+            
+            if not (user_success and assistant_success):
+                logger.warning(f"Failed to persist some messages for conversation {conversation_id}")
+                
+        except Exception as e:
+            logger.error(f"Failed to update conversation history: {str(e)}")
 
     async def get_user_context(self, turn_context: TurnContext) -> dict:
         """Extract user context for authentication/authorization"""

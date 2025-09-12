@@ -1,15 +1,8 @@
-#!/usr/bin/env python3
-"""
-Simple test script for the Teams bot functionality
-Tests the RAG bridge and bot responses without Teams integration
-"""
-
 import asyncio
 import json
 from rag_bridge import RAGBridge
 
 async def test_rag_bridge():
-    """Test the RAG bridge connection and response formatting"""
     print("🧪 Testing RAG Bridge...")
     
     # Initialize RAG bridge with localhost (adjust URL as needed)
@@ -41,7 +34,6 @@ async def test_rag_bridge():
     print("\n🎉 RAG Bridge testing completed!")
 
 def test_adaptive_card_format():
-    """Test the adaptive card formatting"""
     print("\n🎨 Testing Adaptive Card formatting...")
     
     # Mock response data
@@ -80,7 +72,6 @@ def test_adaptive_card_format():
     print(json.dumps(card.content, indent=2)[:500] + "...")
 
 async def main():
-    """Run all tests"""
     print("🚀 Starting Teams Bot Tests\n")
     
     # Test 1: RAG Bridge
