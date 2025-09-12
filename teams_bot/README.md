@@ -12,7 +12,8 @@ Teams User → Teams Bot → RAG Bridge → Existing Backend API → Azure OpenA
 
 - 🤖 Natural conversation in Teams (personal, group chats, channels)
 - 📚 Rich responses with source citations using Adaptive Cards
-- 💬 Conversation history and context preservation
+- 💬 Persistent conversation history with Azure Table Storage
+- 🔐 Managed identity authentication for secure Azure integration
 - 🔍 Integration with existing RAG pipeline
 - ⚡ Commands: `/help`, `/clear`
 
@@ -50,7 +51,7 @@ python app.py
 
 ```bash
 # Run deployment script
-./deploy-teams-bot.sh
+../scripts/deploy-teams-bot.sh
 
 # Follow the output instructions for:
 # - Git deployment
@@ -62,15 +63,26 @@ python app.py
 
 ```
 teams_bot/
-├── app.py                 # Main bot application (aiohttp server)
-├── teams_bot.py          # Core bot logic and message handling
-├── rag_bridge.py         # Integration with existing RAG pipeline
-├── requirements.txt      # Python dependencies
-├── Dockerfile           # Container deployment
-├── deploy-teams-bot.sh  # Azure deployment script
-├── create-manifest.sh   # Teams app manifest generator
+├── app.py                    # Main bot application (aiohttp server)
+├── teams_bot.py             # Core bot logic and message handling
+├── rag_bridge.py            # Integration with existing RAG pipeline
+├── conversation_storage.py  # Persistent conversation state management
+├── requirements.txt         # Python dependencies
+├── Dockerfile              # Container deployment
+├── DEPLOYMENT.md           # Detailed deployment guide
+├── README.md               # This file
 └── manifest/
-    └── manifest.json    # Teams app manifest template
+    └── manifest.json       # Teams app manifest template
+
+../scripts/
+├── deploy-teams-bot.sh     # Azure deployment script
+├── create-manifest.sh      # Teams app manifest generator
+└── test-local.sh          # Local development testing
+
+../tests/
+├── test-bot.py                      # Bot component tests
+├── test_conversation_storage.py     # Storage functionality tests
+└── test_managed_identity_storage.py # Azure storage tests
 ```
 
 ## Configuration
@@ -82,7 +94,8 @@ teams_bot/
 | `MicrosoftAppId` | Bot Framework App ID | "" |
 | `MicrosoftAppPassword` | Bot Framework App Password | "" |
 | `MicrosoftAppType` | App type (MultiTenant/SingleTenant) | "MultiTenant" |
-| `RAG_BACKEND_URL` | Your existing backend API URL | "http://localhost:50505" |
+| `RAG_BACKEND_URL` | Your existing backend API URL | "https://capps-backend-nnsnw2zar7dok.salmoncliff-681251ec.eastus.azurecontainerapps.io" |
+| `AZURE_STORAGE_ACCOUNT_NAME` | Storage account for conversation persistence | "stnnsnw2zar7dok" |
 
 ### RAG Backend Integration
 
@@ -109,7 +122,7 @@ The bot connects to your existing backend via the `/chat` endpoint with this pay
 ### Option 1: Azure App Service (Recommended)
 
 ```bash
-./deploy-teams-bot.sh
+../scripts/deploy-teams-bot.sh
 ```
 
 This creates:
@@ -145,7 +158,7 @@ az containerapp create \
 
 ```bash
 # Generate manifest with your App ID
-./create-manifest.sh <YOUR-APP-ID>
+../scripts/create-manifest.sh <YOUR-APP-ID>
 
 # This creates teams-app-package.zip
 ```
@@ -231,8 +244,9 @@ python app.py  # Check console output for errors
 
 - Connection pooling for backend calls
 - Caching for frequent queries
-- Conversation state persistence with Azure Storage
+- Persistent conversation state with Azure Table Storage and managed identity
 - Rate limiting for API calls
+- Automatic conversation history cleanup (keeps last 20 messages)
 
 ## Monitoring
 

@@ -19,10 +19,10 @@ This guide walks through deploying the Teams bot that integrates with your exist
 cd teams_bot
 
 # Test the bot components
-python test-bot.py
+python ../tests/test-bot.py
 
 # Run bot locally
-./test-local.sh
+../scripts/test-local.sh
 ```
 
 **Test with Bot Framework Emulator:**
@@ -34,7 +34,7 @@ python test-bot.py
 
 ```bash
 # Deploy all Azure resources
-./deploy-teams-bot.sh
+../scripts/deploy-teams-bot.sh
 ```
 
 This script will:
@@ -72,7 +72,7 @@ git push azure main
 
 ```bash
 # Generate manifest with your App ID (from deployment output)
-./create-manifest.sh 12345678-1234-1234-1234-123456789012
+../scripts/create-manifest.sh 12345678-1234-1234-1234-123456789012
 
 # This creates teams-app-package.zip
 ```
