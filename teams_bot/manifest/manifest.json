@@ -1,8 +1,8 @@
 {
   "$schema": "https://developer.microsoft.com/en-us/json-schemas/teams/v1.16/MicrosoftTeams.schema.json",
   "manifestVersion": "1.16",
-  "version": "1.0.2",
-  "id": "b02f848c-3329-4978-9e0b-1ff5b4af3dc8",
+  "version": "1.0.3",
+  "id": "93221cd2-29ca-47fb-a025-b1a3a7d8a9d6",
   "packageName": "com.empoweredai.teams-search-bot",
   "developer": {
     "name": "EmpoweredAI",
@@ -25,7 +25,7 @@
   "accentColor": "#0078d4",
   "bots": [
     {
-      "botId": "b02f848c-3329-4978-9e0b-1ff5b4af3dc8",
+      "botId": "93221cd2-29ca-47fb-a025-b1a3a7d8a9d6",
       "scopes": [
         "personal",
         "team",
@@ -61,6 +61,7 @@
     "messageTeamMembers"
   ],
   "validDomains": [
+    "teams-search-bot-capp.salmoncliff-681251ec.eastus.azurecontainerapps.io",
     "*.azurecontainerapps.io",
     "*.azurewebsites.net"
   ]
