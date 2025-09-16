@@ -12,9 +12,10 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-# Configuration
-RESOURCE_GROUP="rg-teams-search-bot"
-BOT_NAME="teams-search-bot"
+# Configuration - Updated for your actual setup
+RESOURCE_GROUP="rg-ai-master-engineer"
+CONTAINER_APP_NAME="teams-search-bot-capp"
+BOT_NAME="ssoe-teams-bot"
 EXPECTED_ENDPOINT_PATH="/api/messages"
 
 echo -e "${BLUE}🔍 Teams Bot Diagnostics${NC}"
@@ -112,39 +113,27 @@ identify_bot() {
 identify_compute_resource() {
     echo -e "${BLUE}🌐 Identifying Compute Resource...${NC}"
     
-    # First, try to find App Services
-    WEB_APPS=$(az webapp list --resource-group "$RESOURCE_GROUP" --query "[].{Name:name, State:state, Url:defaultHostName}" -o json 2>/dev/null || echo "[]")
+    # First, try to find Container Apps (prioritize since user mentioned container app)
+    CONTAINER_APPS=$(az containerapp list --resource-group "$RESOURCE_GROUP" --query "[].{Name:name, Fqdn:properties.configuration.ingress.fqdn, ProvisioningState:properties.provisioningState}" -o json 2>/dev/null || echo "[]")
     
-    if [ "$(echo "$WEB_APPS" | jq length)" -gt 0 ]; then
-        echo "$WEB_APPS" | jq -r '.[] | "  App Service: \(.Name) - \(.State) - https://\(.Url)"'
+    if [ "$(echo "$CONTAINER_APPS" | jq length)" -gt 0 ]; then
+        echo "  Found Container Apps:"
+        echo "$CONTAINER_APPS" | jq -r '.[] | "    \(.Name) - \(.ProvisioningState) - https://\(.Fqdn // "No FQDN")"'
         
-        # Get the first web app for detailed checks
-        WEB_APP_NAME=$(echo "$WEB_APPS" | jq -r '.[0].Name')
-        WEB_APP_URL="https://$(echo "$WEB_APPS" | jq -r '.[0].Url')"
-        COMPUTE_TYPE="webapp"
-        COMPUTE_NAME="$WEB_APP_NAME"
-        COMPUTE_URL="$WEB_APP_URL"
+        # Look for the specific container app first
+        SPECIFIC_CONTAINER=$(echo "$CONTAINER_APPS" | jq --arg name "$CONTAINER_APP_NAME" '.[] | select(.Name == $name)')
         
-        print_status "OK" "Using App Service: $WEB_APP_NAME"
-        
-    else
-        # Try to find Container Apps
-        CONTAINER_APPS=$(az containerapp list --resource-group "$RESOURCE_GROUP" --query "[].{Name:name, Fqdn:properties.configuration.ingress.fqdn, ProvisioningState:properties.provisioningState}" -o json 2>/dev/null || echo "[]")
-        
-        if [ "$(echo "$CONTAINER_APPS" | jq length)" -gt 0 ]; then
-            echo "$CONTAINER_APPS" | jq -r '.[] | "  Container App: \(.Name) - \(.ProvisioningState) - https://\(.Fqdn // "No FQDN")"'
+        if [ -n "$SPECIFIC_CONTAINER" ] && [ "$SPECIFIC_CONTAINER" != "null" ]; then
+            CONTAINER_APP_FQDN=$(echo "$SPECIFIC_CONTAINER" | jq -r '.Fqdn // empty')
+            CONTAINER_APP_STATE=$(echo "$SPECIFIC_CONTAINER" | jq -r '.ProvisioningState // "Unknown"')
             
-            # Get the first container app for detailed checks
-            CONTAINER_APP_NAME=$(echo "$CONTAINER_APPS" | jq -r '.[0].Name')
-            CONTAINER_APP_FQDN=$(echo "$CONTAINER_APPS" | jq -r '.[0].Fqdn // empty')
+            print_status "OK" "Found target container app: $CONTAINER_APP_NAME ($CONTAINER_APP_STATE)"
             
             if [ -n "$CONTAINER_APP_FQDN" ]; then
                 CONTAINER_APP_URL="https://$CONTAINER_APP_FQDN"
                 COMPUTE_TYPE="containerapp"
                 COMPUTE_NAME="$CONTAINER_APP_NAME"
                 COMPUTE_URL="$CONTAINER_APP_URL"
-                
-                print_status "OK" "Using Container App: $CONTAINER_APP_NAME"
             else
                 print_status "WARNING" "Container App found but no FQDN configured"
                 COMPUTE_TYPE="containerapp"
@@ -152,7 +141,43 @@ identify_compute_resource() {
                 COMPUTE_URL=""
             fi
         else
-            print_status "ERROR" "No App Service or Container App found in resource group"
+            # Use the first container app found
+            CONTAINER_APP_NAME_FOUND=$(echo "$CONTAINER_APPS" | jq -r '.[0].Name')
+            CONTAINER_APP_FQDN=$(echo "$CONTAINER_APPS" | jq -r '.[0].Fqdn // empty')
+            
+            print_status "WARNING" "Target container app '$CONTAINER_APP_NAME' not found, using: $CONTAINER_APP_NAME_FOUND"
+            
+            if [ -n "$CONTAINER_APP_FQDN" ]; then
+                CONTAINER_APP_URL="https://$CONTAINER_APP_FQDN"
+                COMPUTE_TYPE="containerapp"
+                COMPUTE_NAME="$CONTAINER_APP_NAME_FOUND"
+                COMPUTE_URL="$CONTAINER_APP_URL"
+            else
+                COMPUTE_TYPE="containerapp"
+                COMPUTE_NAME="$CONTAINER_APP_NAME_FOUND"
+                COMPUTE_URL=""
+            fi
+        fi
+        
+    else
+        # Fallback to App Services
+        WEB_APPS=$(az webapp list --resource-group "$RESOURCE_GROUP" --query "[].{Name:name, State:state, Url:defaultHostName}" -o json 2>/dev/null || echo "[]")
+        
+        if [ "$(echo "$WEB_APPS" | jq length)" -gt 0 ]; then
+            echo "  Found App Services:"
+            echo "$WEB_APPS" | jq -r '.[] | "    \(.Name) - \(.State) - https://\(.Url)"'
+            
+            # Get the first web app for detailed checks
+            WEB_APP_NAME=$(echo "$WEB_APPS" | jq -r '.[0].Name')
+            WEB_APP_URL="https://$(echo "$WEB_APPS" | jq -r '.[0].Url')"
+            COMPUTE_TYPE="webapp"
+            COMPUTE_NAME="$WEB_APP_NAME"
+            COMPUTE_URL="$WEB_APP_URL"
+            
+            print_status "OK" "Using App Service: $WEB_APP_NAME"
+            
+        else
+            print_status "ERROR" "No Container App or App Service found in resource group"
             return 1
         fi
     fi
