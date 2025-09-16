@@ -1,0 +1,67 @@
+{
+  "$schema": "https://developer.microsoft.com/en-us/json-schemas/teams/v1.16/MicrosoftTeams.schema.json",
+  "manifestVersion": "1.16",
+  "version": "1.0.2",
+  "id": "b02f848c-3329-4978-9e0b-1ff5b4af3dc8",
+  "packageName": "com.empoweredai.teams-search-bot",
+  "developer": {
+    "name": "EmpoweredAI",
+    "websiteUrl": "https://empoweredai.com",
+    "privacyUrl": "https://empoweredai.com/privacy",
+    "termsOfUseUrl": "https://empoweredai.com/terms"
+  },
+  "icons": {
+    "color": "color.png",
+    "outline": "outline.png"
+  },
+  "name": {
+    "short": "SSOE Bot",
+    "full": "AI-Powered Search Assistant for Teams"
+  },
+  "description": {
+    "short": "Intelligent search assistant powered by Azure OpenAI",
+    "full": "An intelligent search assistant that helps you find information using natural language queries. Powered by Azure OpenAI and integrated with your organization's knowledge base."
+  },
+  "accentColor": "#0078d4",
+  "bots": [
+    {
+      "botId": "b02f848c-3329-4978-9e0b-1ff5b4af3dc8",
+      "scopes": [
+        "personal",
+        "team",
+        "groupchat"
+      ],
+      "supportsFiles": false,
+      "isNotificationOnly": false,
+      "supportsCalling": false,
+      "supportsVideo": false,
+      "commandLists": [
+        {
+          "scopes": [
+            "personal",
+            "team",
+            "groupchat"
+          ],
+          "commands": [
+            {
+              "title": "Help",
+              "description": "Show available commands and usage instructions"
+            },
+            {
+              "title": "Clear",
+              "description": "Clear conversation history"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "permissions": [
+    "identity",
+    "messageTeamMembers"
+  ],
+  "validDomains": [
+    "*.azurecontainerapps.io",
+    "*.azurewebsites.net"
+  ]
+}
