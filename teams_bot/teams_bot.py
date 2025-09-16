@@ -98,7 +98,9 @@ class TeamsRAGBot(TeamsActivityHandler):
         return False
 
     def format_response_card(self, response) -> Attachment:
-        """Create Adaptive Card for RAG response"""
+        """Create Adaptive Card for RAG response with Teams-optimized citations"""
+        
+        # Basic card structure
         card = {
             "type": "AdaptiveCard",
             "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
@@ -110,19 +112,32 @@ class TeamsRAGBot(TeamsActivityHandler):
                     "weight": "Bolder",
                     "size": "Medium",
                     "color": "Accent"
-                },
-                {
-                    "type": "TextBlock",
-                    "text": response.get("answer", "No answer found"),
-                    "wrap": True,
-                    "separator": True,
-                    "spacing": "Medium"
                 }
             ]
         }
-
-        # Add citations if available
+        
+        # Add answer with citation markers for Teams
+        answer_text = response.get("answer", "No answer found")
         citations = response.get("citations", [])
+        
+        # Add citation numbers to answer text
+        for i, citation in enumerate(citations[:5], 1):
+            if citation.get("title"):
+                # Add citation markers [1], [2], etc.
+                answer_text = answer_text.replace(
+                    citation.get("title", ""), 
+                    f"{citation.get('title', '')} [[{i}]]"
+                )
+        
+        card["body"].append({
+            "type": "TextBlock",
+            "text": answer_text,
+            "wrap": True,
+            "separator": True,
+            "spacing": "Medium"
+        })
+        
+        # Add citations section with Teams-friendly format
         if citations:
             card["body"].append({
                 "type": "TextBlock",
@@ -130,29 +145,18 @@ class TeamsRAGBot(TeamsActivityHandler):
                 "weight": "Bolder",
                 "spacing": "Medium"
             })
-
-            for i, citation in enumerate(citations[:3]):  # Limit to 3 citations
+            
+            for i, citation in enumerate(citations[:3], 1):
                 citation_container = {
                     "type": "Container",
                     "style": "emphasis",
                     "spacing": "Small",
                     "items": [
                         {
-                            "type": "ColumnSet",
-                            "columns": [
-                                {
-                                    "type": "Column",
-                                    "width": "auto",
-                                    "items": [
-                                        {
-                                            "type": "TextBlock",
-                                            "text": f"📄 {citation.get('title', f'Document {i+1}')}",
-                                            "weight": "Bolder",
-                                            "size": "Small"
-                                        }
-                                    ]
-                                }
-                            ]
+                            "type": "TextBlock",
+                            "text": f"**[{i}] {citation.get('title', f'Document {i}')}**",
+                            "weight": "Bolder",
+                            "size": "Small"
                         },
                         {
                             "type": "TextBlock",
@@ -163,8 +167,22 @@ class TeamsRAGBot(TeamsActivityHandler):
                         }
                     ]
                 }
+                
+                # Add URL button if available
+                if citation.get("url"):
+                    citation_container["items"].append({
+                        "type": "ActionSet",
+                        "actions": [
+                            {
+                                "type": "Action.OpenUrl",
+                                "title": "View Source",
+                                "url": citation.get("url")
+                            }
+                        ]
+                    })
+                
                 card["body"].append(citation_container)
-
+        
         return Attachment(
             content_type="application/vnd.microsoft.card.adaptive",
             content=card
