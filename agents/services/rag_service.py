@@ -227,6 +227,48 @@ class RAGService:
                 "content": f"Error: {str(e)}"
             }
     
+    async def health_check(self) -> Dict[str, Any]:
+        """
+        Check the health of the RAG service and backend connection.
+        """
+        try:
+            if not self._http_session:
+                return {
+                    "status": "unhealthy",
+                    "message": "HTTP session not initialized"
+                }
+            
+            # Test backend connection with a simple health check
+            health_url = f"{self._backend_url.rstrip('/')}/health"
+            
+            async with self._http_session.get(health_url, timeout=aiohttp.ClientTimeout(total=10)) as response:
+                if response.status == 200:
+                    return {
+                        "status": "healthy",
+                        "message": "Backend is responding",
+                        "backend_url": self._backend_url
+                    }
+                else:
+                    return {
+                        "status": "unhealthy",
+                        "message": f"Backend returned status {response.status}",
+                        "backend_url": self._backend_url
+                    }
+                    
+        except asyncio.TimeoutError:
+            return {
+                "status": "unhealthy",
+                "message": "Backend connection timeout",
+                "backend_url": self._backend_url
+            }
+        except Exception as e:
+            logger.error(f"RAG service health check failed: {e}")
+            return {
+                "status": "unhealthy",
+                "message": f"Backend connection error: {str(e)}",
+                "backend_url": self._backend_url
+            }
+    
     async def close(self) -> None:
         """Close the RAG service and clean up resources."""
         if self._http_session:

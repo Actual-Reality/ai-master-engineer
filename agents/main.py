@@ -14,6 +14,7 @@ from quart import Quart, request, jsonify
 
 from config.agent_config import AgentConfig
 from agent_app import AgentApplication
+from health import HealthChecker, setup_health_routes
 
 
 # Configure logging
@@ -34,6 +35,7 @@ class AgentServer:
         self.app = Quart(__name__)
         self.agent_app: Optional[AgentApplication] = None
         self.adapter: Optional[BotFrameworkAdapter] = None
+        self.health_checker: Optional[HealthChecker] = None
         
         # Configure routes
         self._setup_routes()
@@ -76,23 +78,15 @@ class AgentServer:
         async def health():
             """Detailed health check."""
             try:
-                if not self.agent_app:
+                if not self.health_checker:
                     return jsonify({
                         "status": "unhealthy",
-                        "error": "Agent not initialized"
+                        "error": "Health checker not initialized"
                     }), 500
                 
-                # Check if services are healthy
-                health_status = {
-                    "status": "healthy",
-                    "agent": "initialized",
-                    "services": {
-                        "rag_service": "unknown",
-                        "auth_service": "unknown"
-                    }
-                }
-                
-                return jsonify(health_status)
+                health_data = await self.health_checker.get_health_status()
+                status_code = 200 if health_data["status"] == "healthy" else 503
+                return jsonify(health_data), status_code
                 
             except Exception as e:
                 logger.error(f"Error in health check: {e}")
@@ -137,6 +131,16 @@ class AgentServer:
             
             # Get the adapter
             self.adapter = self.agent_app.get_adapter()
+            
+            # Initialize health checker
+            self.health_checker = HealthChecker(
+                config=config,
+                auth_service=self.agent_app.auth_service,
+                rag_service=self.agent_app.rag_service
+            )
+            
+            # Set up health check routes
+            setup_health_routes(self.app, self.health_checker)
             
             logger.info("Agent application initialized successfully")
             
