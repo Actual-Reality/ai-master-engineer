@@ -13,6 +13,7 @@ aiohttp>=3.8.0
 # Authentication
 msal>=1.24.0
 azure-identity>=1.15.0
+azure-core>=1.29.0
 
 # Utilities
 python-dotenv>=1.0.0

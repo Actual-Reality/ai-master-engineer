@@ -9,7 +9,6 @@ from dataclasses import dataclass
 
 from botbuilder.core import TurnContext, MessageFactory
 from botbuilder.schema import Activity, Attachment, CardAction, ActionTypes
-# from botbuilder.adapters.teams import TeamsActivityHandler, TeamsInfo
 
 from services.rag_service import RAGService, RAGRequest, RAGResponse
 from services.auth_service import AuthService
@@ -17,6 +16,7 @@ from adapters.response_adapter import ResponseAdapter
 from adapters.teams_response_adapter import TeamsResponseAdapter
 from components.teams_components import TeamsComponents, TeamsCardConfig
 from constants.teams_text import TeamsTextConstants
+from .message_handler import MessageHandler
 
 
 logger = logging.getLogger(__name__)
@@ -32,17 +32,14 @@ class ConversationData:
     last_activity: Optional[str] = None
 
 
-class TeamsHandler:
+class TeamsHandler(MessageHandler):
     """
     Teams-specific handler that extends the base message handler
     with Teams-specific functionality like adaptive cards, mentions, and file handling.
     """
     
     def __init__(self, rag_service: RAGService, auth_service: AuthService):
-        super().__init__()
-        self.rag_service = rag_service
-        self.auth_service = auth_service
-        self.response_adapter = ResponseAdapter()
+        super().__init__(rag_service, auth_service)
         self.teams_response_adapter = TeamsResponseAdapter()
         self.teams_components = TeamsComponents()
     
@@ -231,9 +228,13 @@ class TeamsHandler:
             
             # Try to get additional Teams context
             try:
-                teams_info = await TeamsInfo.get_team_details(turn_context)
-                context["team_id"] = teams_info.id
-                context["team_name"] = teams_info.name
+                # TeamsInfo is not available in current botbuilder version
+                # We'll extract team info from the activity if available
+                if hasattr(turn_context.activity, 'channel_data') and turn_context.activity.channel_data:
+                    channel_data = turn_context.activity.channel_data
+                    if 'team' in channel_data:
+                        context["team_id"] = channel_data['team'].get('id')
+                        context["team_name"] = channel_data['team'].get('name')
             except Exception:
                 # Not in a team context
                 pass
